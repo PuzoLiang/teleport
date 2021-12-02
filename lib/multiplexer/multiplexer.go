@@ -54,12 +54,12 @@ type Config struct {
 	Clock clockwork.Clock
 	// EnableProxyProtocol enables proxy protocol
 	EnableProxyProtocol bool
-	// DisableSSH disables SSH socket
-	DisableSSH bool
-	// DisableTLS disables TLS socket
-	DisableTLS bool
-	// DisablePostgres disables Postgres access proxy listener
-	DisablePostgres bool
+	// EnableSSH socket
+	EnableSSH bool
+	// EnableTLS socket
+	EnableTLS bool
+	// EnablePostgres access proxy listener
+	EnablePostgres bool
 	// ID is an identifier used for debugging purposes
 	ID string
 }
@@ -221,7 +221,7 @@ func (m *Mux) detectAndForward(conn net.Conn) {
 
 	switch connWrapper.protocol {
 	case ProtoTLS:
-		if m.DisableTLS {
+		if !m.EnableTLS {
 			m.Debug("Closing TLS connection: TLS listener is disabled.")
 			conn.Close()
 			return
@@ -233,7 +233,7 @@ func (m *Mux) detectAndForward(conn net.Conn) {
 			return
 		}
 	case ProtoSSH:
-		if m.DisableSSH {
+		if !m.EnableSSH {
 			m.Debug("Closing SSH connection: SSH listener is disabled.")
 			conn.Close()
 			return
@@ -249,7 +249,7 @@ func (m *Mux) detectAndForward(conn net.Conn) {
 		conn.Close()
 	case ProtoPostgres:
 		m.WithField("protocol", connWrapper.protocol).Debug("Detected Postgres client connection.")
-		if m.DisablePostgres {
+		if !m.EnablePostgres {
 			m.Debug("Closing Postgres client connection: db proxy listener is disabled.")
 			conn.Close()
 			return

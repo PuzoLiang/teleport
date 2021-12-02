@@ -62,6 +62,42 @@ func TestMux(t *testing.T) {
 	_, signer, err := utils.CreateCertificate("foo", ssh.HostCert)
 	require.Nil(t, err)
 
+	// Connections should close immediately when protocol is not enabled.
+	// Successful close returns EOF on Read. Failure is detected as a timeout on Read.
+	t.Run("Close connection when protocol is disabled", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.Nil(t, err)
+
+		mux, err := New(Config{Listener: listener})
+		require.Nil(t, err)
+		go mux.Serve()
+
+		buf := make([]byte, 10)
+		addr := listener.Addr()
+		cases := [][]byte{
+			proxyPrefix,
+			sshPrefix,
+			tlsPrefix,
+			postgresSSLRequest,
+			postgresCancelRequest,
+		}
+		for i, test := range cases {
+			conn, err := net.Dial(addr.Network(), addr.String())
+			require.Nil(t, err, "case %d Dial: %v", i, err)
+
+			copy(buf, test)
+			_, err = conn.Write(buf)
+			require.Nil(t, err, "case %d Write: %v", i, err)
+
+			conn.SetDeadline(time.Now().Add(time.Second * 5))
+			_, err = conn.Read(buf)
+			require.ErrorIs(t, err, io.EOF, "case %d Read: expected EOF got %v", i, err)
+		}
+
+		mux.Close()
+		mux.Wait()
+	})
+
 	// TestMux tests basic use case of multiplexing TLS
 	// and SSH on the same listener socket
 	t.Run("TLSSSH", func(t *testing.T) {
@@ -71,6 +107,8 @@ func TestMux(t *testing.T) {
 		mux, err := New(Config{
 			Listener:            listener,
 			EnableProxyProtocol: true,
+			EnableSSH:           true,
+			EnableTLS:           true,
 		})
 		require.Nil(t, err)
 		go mux.Serve()
@@ -146,6 +184,7 @@ func TestMux(t *testing.T) {
 		mux, err := New(Config{
 			Listener:            listener,
 			EnableProxyProtocol: true,
+			EnableTLS:           true,
 		})
 		require.Nil(t, err)
 		go mux.Serve()
@@ -198,6 +237,7 @@ func TestMux(t *testing.T) {
 		mux, err := New(Config{
 			Listener:            listener,
 			EnableProxyProtocol: false,
+			EnableTLS:           true,
 		})
 		require.Nil(t, err)
 		go mux.Serve()
@@ -249,6 +289,7 @@ func TestMux(t *testing.T) {
 			Listener:            listener,
 			ReadDeadline:        time.Millisecond,
 			EnableProxyProtocol: true,
+			EnableTLS:           true,
 		}
 		mux, err := New(config)
 		require.Nil(t, err)
@@ -317,7 +358,7 @@ func TestMux(t *testing.T) {
 		mux, err := New(Config{
 			Listener:            listener,
 			EnableProxyProtocol: true,
-			DisableSSH:          true,
+			EnableTLS:           true,
 		})
 		require.Nil(t, err)
 		go mux.Serve()
@@ -370,7 +411,7 @@ func TestMux(t *testing.T) {
 		mux, err := New(Config{
 			Listener:            listener,
 			EnableProxyProtocol: true,
-			DisableTLS:          true,
+			EnableSSH:           true,
 		})
 		require.Nil(t, err)
 		go mux.Serve()
@@ -437,6 +478,7 @@ func TestMux(t *testing.T) {
 		mux, err := New(Config{
 			Listener:            listener,
 			EnableProxyProtocol: true,
+			EnableTLS:           true,
 		})
 		require.Nil(t, err)
 		go mux.Serve()
@@ -529,8 +571,9 @@ func TestMux(t *testing.T) {
 		defer cancel()
 
 		mux, err := New(Config{
-			Context:  ctx,
-			Listener: listener,
+			Context:        ctx,
+			Listener:       listener,
+			EnablePostgres: true,
 		})
 		require.NoError(t, err)
 		go mux.Serve()
@@ -561,6 +604,8 @@ func TestMux(t *testing.T) {
 		mux, err := New(Config{
 			Listener:            listener,
 			EnableProxyProtocol: true,
+			EnableTLS:           true,
+			EnablePostgres:      true,
 		})
 		require.Nil(t, err)
 		go mux.Serve()

@@ -875,6 +875,8 @@ func setupTestContext(ctx context.Context, t *testing.T, withDatabases ...withDa
 		ID:                  "test",
 		Listener:            listener,
 		EnableProxyProtocol: true,
+		EnableTLS:           true,
+		EnablePostgres:      true,
 	})
 	require.NoError(t, err)
 
