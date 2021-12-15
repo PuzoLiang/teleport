@@ -15,7 +15,11 @@ Let's connect to Grafana using Teleport Application Access in three steps:
 ## Prerequisites
 
 - We will use Docker to launch Grafana in a container. Alternatively, if you have another web application you'd like to protect with App Access, you can use that instead.
-- We will assume your Teleport cluster is accessible at `teleport.example.com` and `*.teleport.example.com`. Configured DNS records are required to automatically fetch a [Let's Encrypt](https://letsencrypt.org) certificate.
+- We will assume your Teleport cluster is accessible at `teleport.example.com` and `*.teleport.example.com`. Configured DNS records are required to automatically fetch a [Let's Encrypt](https://letsencrypt.org) certificate. 
+
+<Admonition type="note" title="Teleport and Wildcard Certificates">
+Teleport assigns a subdomain to each application you have configured for Application Access (e.g., `grafana.teleport.example.com`), so you need to create a DNS A record with a wildcard subdomain (e.g., `*.teleport.example.com`). This way, Let's Encrypt can issue a wildcard certificate, enabling clients to verify your Teleport hosts regardless of the application they are accessing.
+</Admonition>
 
 ## Step 1/3. Start Grafana
 
@@ -40,6 +44,10 @@ using Let's Encrypt [ACME](https://letsencrypt.org/how-it-works/) protocol.
 
 We will assume that you have configured DNS records for `teleport.example.com`
 and `*.teleport.example.com` to point to the Teleport node.
+
+<Admonition type="note" title="Why do I need a wildcard certificate?">
+Teleport assigns a subdomain to each application you have configured for Application Access (e.g., `grafana.teleport.example.com`), so the wildcard certificate enables clients to verify your Teleport hosts regardless of application.
+</Admonition>
 
 (!docs/pages/includes/permission-warning.mdx!)
 

@@ -4,8 +4,13 @@ installation [instructions](../../installation.mdx).
 
 Teleport requires a valid TLS certificate to operate and can fetch one automatically
 using Let's Encrypt [ACME](https://letsencrypt.org/how-it-works/) protocol. We
-will assume that you have configured DNS records for `teleport.example.com` and
-`*.teleport.example.com` to point to the Teleport node.
+will assume that you have set up a DNS A record for `teleport.example.com` to point to the Teleport node.
+
+<Details opened={false} title="Using Application Access?">
+Teleport assigns a subdomain to each application you have configured for Application Access (e.g., `grafana.teleport.example.com`), so you will also need to create a DNS A record with a wildcard subdomain (e.g., `*.tele.example.com`). This way, Let's Encrypt can issue a wildcard certificate, enabling clients to verify your Teleport hosts regardless of the application they are accessing.
+
+[Learn more about Teleport Application Access](../../application-access/getting-started.mdx)
+</Details>
 
 Generate Teleport config with ACME enabled:
 

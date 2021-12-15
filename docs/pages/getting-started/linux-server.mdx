@@ -77,7 +77,13 @@ Take a look at the [Installation Guide](../installation.mdx) for more options.
 
 ### Configure DNS
 
-Teleport uses TLS to provide secure access to its Proxy Service and Auth Service, and this requires a domain name that clients can use to verify Teleport's certificate. To get started, set up two `A` records for `tele.example.com` and `*.tele.example.com` pointing to the IP/FQDN of the machine with Teleport installed.
+Teleport uses TLS to provide secure access to its Proxy Service and Auth Service, and this requires a domain name that clients can use to verify Teleport's certificate. To get started, set up a DNS `A` record for `tele.example.com` pointing to the IP/FQDN of the machine with Teleport installed.
+
+<Details opened={false} title="Using Application Access?">
+Teleport assigns a subdomain to each application you have configured for Application Access (e.g., `grafana.teleport.example.com`), so you will also need to create a DNS A record with a wildcard subdomain (e.g., `*.tele.example.com`). This way, Let's Encrypt can issue a wildcard certificate, enabling clients to verify your Teleport hosts regardless of the application they are accessing.
+
+[Learn more about Teleport Application Access](../application-access/getting-started.mdx)
+</Details>
 
 <Admonition
   type="tip"

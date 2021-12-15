@@ -104,8 +104,13 @@ to create a public IP for Teleport.
   </TabItem>
 </Tabs>
 
-Set up two `A` DNS records - `tele.example.com` for UI and `*.tele.example.com`
-for web apps using [application access](../../application-access/introduction.mdx).
+You will also need to create a DNS A record for `tele.example.com` so clients can verify the TLS certificate of your Teleport hosts.
+
+<Details opened={false} title="Using Application Access?">
+Teleport assigns a subdomain to each application you have configured for Application Access (e.g., `grafana.teleport.example.com`), so you will also need to create a DNS A record with a wildcard subdomain (e.g., `*.tele.example.com`). This way, Let's Encrypt can issue a wildcard certificate, enabling clients to verify your Teleport hosts regardless of the application they are accessing.
+
+[Learn more about Teleport Application Access](../../application-access/getting-started.mdx)
+</Details>
 
 <Tabs>
   <TabItem label="GCP Cloud DNS">
@@ -115,7 +120,6 @@ for web apps using [application access](../../application-access/introduction.md
 
     $ gcloud dns record-sets transaction start --zone="${MYZONE?}"
     $ gcloud dns record-sets transaction add ${MYIP?} --name="${MYDNS?}" --ttl="30" --type="A" --zone="${MYZONE?}"
-    $ gcloud dns record-sets transaction add ${MYIP?} --name="*.${MYDNS?}" --ttl="30" --type="A" --zone="${MYZONE?}"
     $ gcloud dns record-sets transaction describe --zone="${MYZONE?}"
     $ gcloud dns record-sets transaction execute --zone="${MYZONE?}"
     ```
@@ -131,8 +135,7 @@ for web apps using [application access](../../application-access/introduction.md
 
     # Create a JSON file changeset for AWS.
     $ jq -n --arg ip ${MYIP?} --arg dns ${MYDNS?} '{"Comment": "Create records", "Changes": [
-      {"Action": "CREATE", "ResourceRecordSet": {"Name": $dns, "Type": "A", "TTL": 300, "ResourceRecords": [{ "Value": $ip}]}},
-      {"Action": "CREATE", "ResourceRecordSet": {"Name": ("*." + $dns), "Type": "A", "TTL": 300, "ResourceRecords": [{ "Value": $ip}]}}
+      {"Action": "CREATE", "ResourceRecordSet": {"Name": $dns, "Type": "A", "TTL": 300, "ResourceRecords": [{ "Value": $ip}]}}
       ]}' > myrecords.json
 
     # Review records before applying.
