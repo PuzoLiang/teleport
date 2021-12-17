@@ -238,7 +238,7 @@ type UserCertParams struct {
 	// PermitPortForwarding permits port forwarding.
 	PermitPortForwarding bool
 	// Roles is a list of roles assigned to this user
-	Roles []string
+	Roles RoleSet
 	// CertificateFormat is the format of the SSH certificate.
 	CertificateFormat string
 	// RouteToCluster specifies the target cluster

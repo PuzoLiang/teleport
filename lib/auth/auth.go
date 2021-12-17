@@ -904,7 +904,7 @@ func (a *Server) generateUserCert(req certRequest) (*proto.Certs, error) {
 		Impersonator:          req.impersonator,
 		AllowedLogins:         allowedLogins,
 		TTL:                   sessionTTL,
-		Roles:                 req.checker.RoleNames(),
+		Roles:                 req.checker.Roles(),
 		CertificateFormat:     certificateFormat,
 		PermitPortForwarding:  req.checker.CanPortForward(),
 		PermitAgentForwarding: req.checker.CanForwardAgents(),

@@ -1499,6 +1499,17 @@ message RoleOptions {
         (gogoproto.jsontag) = "lock,omitempty",
         (gogoproto.casttype) = "github.com/gravitational/teleport/api/constants.LockingMode"
     ];
+
+    // CertExtensions specifies the key/values
+    repeated CertExtension CertExtensions = 15
+        [ (gogoproto.jsontag) = "cert_extensions,omitempty" ];
+}
+
+message CertExtension {
+    string Type = 1 [ (gogoproto.jsontag) = "type" ];
+    string Mode = 2 [ (gogoproto.jsontag) = "mode" ];
+    string Name = 3 [ (gogoproto.jsontag) = "name" ];
+    string Value = 4 [ (gogoproto.jsontag) = "value" ];
 }
 
 // RoleConditions is a set of conditions that must all match to be allowed or

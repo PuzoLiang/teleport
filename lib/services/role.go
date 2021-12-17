@@ -620,6 +620,8 @@ type AccessChecker interface {
 	// RoleNames returns a list of role names
 	RoleNames() []string
 
+	Roles() RoleSet
+
 	// CheckAccess checks access to the specified resource.
 	CheckAccess(r AccessCheckable, mfa AccessMFAParams, matchers ...RoleMatcher) error
 
@@ -924,6 +926,19 @@ func (set RoleSet) RoleNames() []string {
 			continue
 		}
 		out = append(out, r.GetName())
+	}
+	return out
+}
+
+// Roles returns a slice with roles. Removes runtime roles like
+// the default implicit role.
+func (set RoleSet) Roles() RoleSet {
+	out := make(RoleSet, 0, len(set))
+	for _, r := range set {
+		if r.GetName() == constants.DefaultImplicitRole {
+			continue
+		}
+		out = append(out, r)
 	}
 	return out
 }
