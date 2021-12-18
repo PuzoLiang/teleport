@@ -4100,60 +4100,6 @@ steps:
       - mkdir -p /go/artifacts
       - aws s3 sync s3://$AWS_S3_BUCKET/teleport/tag/${DRONE_TAG##v}/ /go/artifacts/
 
-  - name: Upload artifacts to production S3
-    image: plugins/s3
-    settings:
-      bucket:
-        from_secret: PRODUCTION_AWS_S3_BUCKET
-      access_key:
-        from_secret: PRODUCTION_AWS_ACCESS_KEY_ID
-      secret_key:
-        from_secret: PRODUCTION_AWS_SECRET_ACCESS_KEY
-      region: us-east-1
-      acl: public-read
-      source: /go/artifacts/*
-      target: teleport/${DRONE_TAG##v}/
-      strip_prefix: /go/artifacts/
-
-  - name: Pull/retag Docker images
-    image: docker
-    settings:
-      docker_staging_username:
-        from_secret: QUAYIO_DOCKER_USERNAME
-      docker_staging_password:
-        from_secret: QUAYIO_DOCKER_PASSWORD
-      docker_production_username:
-        from_secret: PRODUCTION_QUAYIO_DOCKER_USERNAME
-      docker_production_password:
-        from_secret: PRODUCTION_QUAYIO_DOCKER_PASSWORD
-    volumes:
-      - name: dockersock
-        path: /var/run
-    commands:
-      # wait for docker to start
-      - sleep 3
-      - export VERSION=${DRONE_TAG##v}
-      # authenticate with staging credentials
-      - docker login -u="$PLUGIN_DOCKER_STAGING_USERNAME" -p="$PLUGIN_DOCKER_STAGING_PASSWORD" quay.io
-      # pull 'temporary' CI-built images
-      - echo "---> Pulling images for $${VERSION}"
-      - docker pull quay.io/gravitational/teleport-ci:$${VERSION}
-      - docker pull quay.io/gravitational/teleport-ent-ci:$${VERSION}
-      - docker pull quay.io/gravitational/teleport-ent-ci:$${VERSION}-fips
-      # retag images to production naming
-      - echo "---> Tagging images for $${VERSION}"
-      - docker tag quay.io/gravitational/teleport-ci:$${VERSION} quay.io/gravitational/teleport:$${VERSION}
-      - docker tag quay.io/gravitational/teleport-ent-ci:$${VERSION} quay.io/gravitational/teleport-ent:$${VERSION}
-      - docker tag quay.io/gravitational/teleport-ent-ci:$${VERSION}-fips quay.io/gravitational/teleport-ent:$${VERSION}-fips
-      # reauthenticate with production credentials
-      - docker logout quay.io
-      - docker login -u="$PLUGIN_DOCKER_PRODUCTION_USERNAME" -p="$PLUGIN_DOCKER_PRODUCTION_PASSWORD" quay.io
-      # push production images
-      - echo "---> Pushing images for $${VERSION}"
-      - docker push quay.io/gravitational/teleport:$${VERSION}
-      - docker push quay.io/gravitational/teleport-ent:$${VERSION}
-      - docker push quay.io/gravitational/teleport-ent:$${VERSION}-fips
-
   - name: Check out code
     image: docker:git
     commands:
@@ -4177,21 +4123,6 @@ steps:
       - apk add --no-cache aws-cli
       - mkdir -p /go/src/github.com/gravitational/teleport/assets/aws/files/build
       - aws s3 sync s3://$AWS_S3_BUCKET/teleport/ami/${DRONE_TAG##v}/ /go/src/github.com/gravitational/teleport/assets/aws/files/build
-
-  - name: Make AMIs public
-    image: docker
-    environment:
-      AWS_ACCESS_KEY_ID:
-        from_secret: PRODUCTION_AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY:
-        from_secret: PRODUCTION_AWS_SECRET_ACCESS_KEY
-    commands:
-      - apk add --no-cache aws-cli bash jq make
-      - cd /go/src/github.com/gravitational/teleport/assets/aws
-      - |
-        make change-amis-to-public-oss
-        make change-amis-to-public-ent
-        make change-amis-to-public-ent-fips
 
   # Download all previously packaged charts. This is needed to rebuild the
   # index and re-publish the repository.
@@ -4220,44 +4151,6 @@ steps:
       # plus the just-packaged charts listed above
       - helm repo index /go/chart
       - ls /go/chart
-
-  - name: "Helm: Publish chart repository to S3"
-    image: plugins/s3
-    settings:
-      bucket:
-        from_secret: PRODUCTION_CHARTS_AWS_S3_BUCKET
-      access_key:
-        from_secret: PRODUCTION_CHARTS_AWS_ACCESS_KEY_ID
-      secret_key:
-        from_secret: PRODUCTION_CHARTS_AWS_SECRET_ACCESS_KEY
-      region: us-east-2
-      acl: public-read
-      source: /go/chart/*
-      target: /
-      strip_prefix: /go/chart
-
-  # NOTE: all mandatory steps for a release promotion need to go BEFORE this
-  # step, as there is a chance that everything afterwards will be skipped.
-  #
-  # this step exits early and skips all remanining steps in the pipeline if the
-  # tag looks like a pre-release, to avoid publishing RPMs for pre-release builds.
-  - name: Determine whether RPM/DEB packages should be published to repos
-    image: docker
-    commands:
-      - |
-        if [ "${DRONE_REPO}" != "gravitational/teleport" ]; then
-          echo "---> Not publishing ${DRONE_REPO} packages to repos"
-          exit 78
-        fi
-        # length will be 0 after filtering if this is a pre-release, >0 otherwise
-        FILTERED_TAG_LENGTH=$(echo ${DRONE_TAG} | egrep -v '(alpha|beta|dev|rc)' | wc -c)
-        if [ $$FILTERED_TAG_LENGTH -eq 0 ]; then
-          echo "---> ${DRONE_TAG} looks like a pre-release, not publishing packages to repos"
-          # exit pipeline early with success status
-          exit 78
-        else
-          echo "---> Publishing packages to repos for ${DRONE_TAG}"
-        fi
 
   - name: Download RPM repo contents
     image: amazon/aws-cli
@@ -4304,21 +4197,6 @@ steps:
       # Sign rpm repo metadata (yum clients will automatically look for and verify repodata/repomd.xml.asc)
       - gpg --detach-sign --armor /rpmrepo/teleport/repodata/repomd.xml
       - rm -rf $GNUPGHOME
-
-  - name: Sync RPM repo changes to S3
-    image: amazon/aws-cli
-    environment:
-      AWS_S3_BUCKET:
-        from_secret: RPMREPO_AWS_S3_BUCKET
-      AWS_ACCESS_KEY_ID:
-        from_secret: RPMREPO_AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY:
-        from_secret: RPMREPO_AWS_SECRET_ACCESS_KEY
-    volumes:
-      - name: rpmrepo
-        path: /rpmrepo
-    commands:
-    - aws s3 sync /rpmrepo/teleport/ s3://$AWS_S3_BUCKET/teleport/
 
   - name: Download DEB repo contents
     image: amazon/aws-cli
@@ -4389,21 +4267,6 @@ steps:
         # copy artifacts to PVC
         cp -r /go/reprepro/teleport /debrepo/
 
-  - name: Sync DEB repo changes to S3
-    image: amazon/aws-cli
-    environment:
-      AWS_S3_BUCKET:
-        from_secret: DEBREPO_AWS_S3_BUCKET
-      AWS_ACCESS_KEY_ID:
-        from_secret: DEBREPO_AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY:
-        from_secret: DEBREPO_AWS_SECRET_ACCESS_KEY
-    volumes:
-      - name: debrepo
-        path: /debrepo
-    commands:
-    - aws s3 sync /debrepo/teleport/ s3://$AWS_S3_BUCKET/teleport/
-
 services:
   - name: Start Docker
     image: docker:dind
@@ -4430,6 +4293,6 @@ volumes:
       name: drone-s3-debrepo-pvc
 ---
 kind: signature
-hmac: ccd92007341b3b634904e92eddf351f2a94b750d57031d21fd861a0d163f7c4f
+hmac: 442c9e950ac807274b34e80e88853799160022520ceb39401232750305993432
 
 ...
